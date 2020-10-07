@@ -1,0 +1,20 @@
+
+{% extends "layout.html" %}
+{% block content %}
+<table id="myTable" class="display" style="width:100%">
+  <thead>
+      <tr>
+          <th>Show</th>
+          <th>Details</th>
+      </tr>
+  </thead>
+  <tbody>
+    {% for show in shows %}
+      <tr>
+          <td><a href="show/{{ show.show.id }}">{{ show.show.name }}</a></td>
+          <td>{{ show.show.description }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
