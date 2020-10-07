@@ -8,8 +8,6 @@ import spotipy
 import spotipy.util as util
 from flask import Flask, render_template, request, redirect, url_for, session
 from dotenv import load_dotenv
-import json
-import requests
 
 load_dotenv()
 app = Flask(__name__)
@@ -23,6 +21,7 @@ API_BASE = 'https://accounts.spotify.com'
 REDIRECT_URI = f'{APP_URI}/callback'
 SCOPE = 'user-library-read,user-read-playback-position'
 SHOW_DIALOG = False
+PAGE_SIZE = 50
 
 @app.route("/")
 def index():
@@ -35,9 +34,9 @@ def index():
   offset = 0
   shows = []
   while True:
-    page = sp.current_user_saved_shows(limit=50, offset=offset)
+    page = sp.current_user_saved_shows(limit=PAGE_SIZE, offset=offset)
     shows = shows + page['items']
-    offset += 50
+    offset += PAGE_SIZE
     if page['next'] is None:
       break
   return render_template('index.html', shows=shows)
@@ -52,20 +51,21 @@ def show(showId):
   sp = spotipy.Spotify(auth=session.get('token_info').get('access_token'))
 
   offset = 0
-  all_episodes = []
+  episodes = []
   while True:
-    episodes = sp.show_episodes(showId, limit=50, offset=offset)
-    all_episodes = all_episodes + episodes['items']
-    offset += 50
-    if episodes['next'] is None:
+    page = sp.show_episodes(showId, limit=PAGE_SIZE, offset=offset)
+    episodes = episodes + page['items']
+    offset += PAGE_SIZE
+    if page['next'] is None:
       break
 
   ## Add some friendly values to each episodes
-  for episode in all_episodes:
-    episode['resume_point_min'] = round(episode['resume_point']['resume_position_ms']/60000)
-    episode['duration_min'] = round(episode['duration_ms']/60000)
+  ms_per_minute = 60000
+  for episode in episodes:
+    episode['resume_point_min'] = round(episode['resume_point']['resume_position_ms'] / ms_per_minute)
+    episode['duration_min'] = round(episode['duration_ms'] / ms_per_minute)
 
-  return render_template("show.html", episodes=all_episodes)
+  return render_template("show.html", episodes=episodes)
 
 ## Spotify OAuth flow
 @app.route("/verify")
@@ -122,5 +122,4 @@ def get_token(session):
   return token_info, token_valid
   
 if __name__ == "__main__":
-  
   app.run(host='0.0.0.0')
