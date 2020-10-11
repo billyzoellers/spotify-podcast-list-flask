@@ -6,7 +6,7 @@ import os
 import time
 import spotipy
 import spotipy.util as util
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,6 +31,7 @@ def index():
     return redirect('verify')
   
   sp = spotipy.Spotify(auth=session.get('token_info').get('access_token'))
+  current_user = sp.me()
   offset = 0
   shows = []
   while True:
@@ -39,7 +40,7 @@ def index():
     offset += PAGE_SIZE
     if page['next'] is None:
       break
-  return render_template('index.html', shows=shows)
+  return render_template('index.html', shows=shows, current_user=current_user)
 
 @app.route("/show/<showId>")
 def show(showId):
@@ -49,7 +50,7 @@ def show(showId):
     return redirect('verify')
   
   sp = spotipy.Spotify(auth=session.get('token_info').get('access_token'))
-
+  current_user = sp.me()
   offset = 0
   episodes = []
   while True:
@@ -64,8 +65,15 @@ def show(showId):
   for episode in episodes:
     episode['resume_point_min'] = round(episode['resume_point']['resume_position_ms'] / ms_per_minute)
     episode['duration_min'] = round(episode['duration_ms'] / ms_per_minute)
+    episode['pct_completed'] = round(episode['resume_point']['resume_position_ms']/episode['duration_ms']*100)
 
-  return render_template("show.html", episodes=episodes)
+  if 'type' in request.args and request.args['type'] == 'json':
+    return jsonify(data = episodes)
+
+  if 'type' in request.args and request.args['type'] == 'ajax':
+    return render_template("showajax.html", path=showId, current_user=current_user, back_link='/')
+
+  return render_template("show.html", episodes=episodes, current_user=current_user, back_link='/')
 
 ## Spotify OAuth flow
 @app.route("/verify")
